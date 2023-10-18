@@ -1,0 +1,90 @@
+
+ 	
+                         +-----------------+
+                         |    COMP 7035    |  
+                         |   Assignment 1  |
+			 |      Part 2     |
+                         | DESIGN DOCUMENT |
+                         +-----------------+
+
+---- GROUP ----
+
+Jasper Zhou - A01235376
+
+---- PRELIMINARIES ----
+
+Collaborated heavily and worked alongside with Jun's group 
+
+---- PRELIMINARIES ----
+
+* Design document template: https://www.scs.stanford.edu/23wi-cs212/pintos/pintos_9.html
+* Implementation Instructions: https://www.scs.stanford.edu/23wi-cs212/pintos/pintos_2.html
+* Threads tutorial: https://youtu.be/4C8J6jLPJPc?si=i5TUFlAjDsKMJVvw
+* https://chat.openai.com/
+
+                                 JOIN
+                                 ====
+
+---- DATA STRUCTURES ----
+
+Sleep the thread for x ticks and determine what the wakeup time is for each thread
+```void timer_sleep(int64_t ticks)
+{
+  if (ticks <= 0)
+    return;
+
+  int64_t start = timer_ticks();
+
+  put_thread_to_sleep(start + ticks);
+}```
+
+enum Status for a thread of when it is sleeping, similar to THREAD_BlOCKED
+```THREAD_SLEEPING```
+
+
+additional int for the wakeup time value and list of sleeping threads for the thread class
+```
+int64_t wakeup_ticks;        
+struct semaphore sleep_sema;
+struct list_elem sleep_elem; 
+```
+
+initializing a list of sleeping threads in thread.c
+```
+static struct list sleeping_threads;
+```
+
+---- ALGORITHMS ----
+
+void timer_sleep(int64_t ticks)
+{
+  if (ticks <= 0)
+    return;
+
+  int64_t start = timer_ticks();
+
+  put_thread_to_sleep(start + ticks);
+}
+
+Puts threads to sleep for the number of ticks passed to it if current tick amount is greater than zero. Does this by calling a method that runs a few tests and then calls thread sleep.
+
+
+---- RATIONALE ----
+
+Advantages:
+
+1. Reduced Busy Waiting: This redesign eliminates busy waiting in `timer_sleep()`. Previously, the function was spinning in a loop, checking the current time and calling `thread_yield()` until enough time had passed. This approach, using the `sleeping_threads` list and `thread_sleep()`, ensures that a sleeping thread does not consume CPU time while waiting.
+
+2. Modularity: The code is becoming more modular with the addition of functions like `thread_sleep()`, `thread_unsleep()`, `put_thread_to_sleep()`, and `wake_up_sleeping_threads()`. This modularity can improve code readability and maintenance.
+
+3. Scalability: This design allows for the efficient management of multiple sleeping threads. With `sleeping_threads`, it's easier to keep track of threads that are in a sleeping state, ensuring they wake up at the appropriate time.
+
+Potential Disadvantages:
+
+1. Complexity: While the code is becoming more modular, it's also becoming more complex. The introduction of new functions and data structures like `sleeping_threads` may increase the complexity of the code, potentially making it more challenging to debug and maintain.
+
+2. Synchronization: Proper synchronization is crucial in a multi-threaded environment. You need to ensure that your modifications do not introduce new synchronization issues or race conditions. The `INTR_OFF` assertion and calls to `intr_disable()` and `intr_set_level()` should help with this.
+
+3. Testing: With these changes, comprehensive testing is necessary to ensure the code operates correctly. In particular, ensure that threads are woken up at the right times and that there are no unexpected delays or premature wake-ups.
+
+4. Optimization: A scheduling algorithm could be used to opitimize idle time and increase efficiency and equal thread run time
