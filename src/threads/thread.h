@@ -93,6 +93,11 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
+    
+   /* Fields for sleep and wakeup */
+    struct semaphore sleep_sema;  /* Semaphore for sleeping and waking up threads */
+    int64_t wakeup_time;         /* Wake-up time for sleeping threads */
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */

@@ -30,11 +30,13 @@ static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
+
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
 void
 timer_init (void) 
 {
+
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
 }
@@ -84,8 +86,83 @@ timer_elapsed (int64_t then)
   return timer_ticks () - then;
 }
 
+static void timer_interrupt(struct intr_frame *args UNUSED) {
+    ticks++;
+    thread_tick();
+
+    struct list_elem *e;
+    struct list_elem *next;
+    int64_t current_tick = timer_ticks();
+
+    for (e = list_begin(&sleeping_threads); e != list_end(&sleeping_threads); e = next) {
+        struct thread *t = list_entry(e, struct thread, sleep_elem);
+        next = list_next(e);
+
+        if (current_tick >= t->wakeup_tick) {
+            // Remove the thread from the sleeping list.
+            list_remove(e);
+
+            // Unblock the thread.
+            thread_unblock(t);
+        }
+    }
+}
+
+void
+timer_sleep (int64_t ticks)
+{
+  int64_t start = timer_ticks();
+
+  ASSERT (intr_get_level () == INTR_ON);
+
+  // Disable interrupts during sleep
+  enum intr_level old_level = intr_disable();
+
+  struct thread *current_thread = thread_current();
+
+  current_thread->wakeup_time = start + ticks; // Set the wakeup time
+
+  while (timer_elapsed(start) < ticks)
+  {
+    // Block the current thread
+    sema_down(&current_thread->sleep_sema);
+  }
+
+  // Re-enable interrupts
+  intr_set_level(old_level);
+}
+
+static void
+timer_interrupt (struct intr_frame *args UNUSED)
+{
+  ticks++;
+  thread_tick();
+
+  // Check if there are sleeping threads to wake up
+  if (!list_empty(&sleeping_threads))
+  {
+    struct list_elem *e = list_begin(&sleeping_threads);
+    while (e != list_end(&sleeping_threads))
+    {
+      struct thread *t = list_entry(e, struct thread, elem);
+
+      if (timer_elapsed(t->wakeup_time) >= 0)
+      {
+        e = list_remove(e);
+        // Unblock the sleeping thread
+        sema_up(&t->sleep_sema);
+      }
+      else
+      {
+        // No need to check further since the list is sorted by wakeup_time
+        break;
+      }
+    }
+  }
+}
+
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
-   be turned on. */
+   be turned on. 
 void
 timer_sleep (int64_t ticks) 
 {
@@ -95,6 +172,7 @@ timer_sleep (int64_t ticks)
   while (timer_elapsed (start) < ticks) 
     thread_yield ();
 }
+*/
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
    turned on. */

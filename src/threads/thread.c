@@ -451,6 +451,9 @@ is_thread (struct thread *t)
 static void
 init_thread (struct thread *t, const char *name, int priority)
 {
+  sema_init(&t->sleep_sema, 0);  // Initialize the sleep semaphore
+  t->wakeup_time = 0;           // Initialize the wakeup time
+
   enum intr_level old_level;
 
   ASSERT (t != NULL);
